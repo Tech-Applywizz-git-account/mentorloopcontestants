@@ -1028,7 +1028,7 @@ const Auth = () => {
       email,
       password,
       options: {
-        emailRedirectTo: `${baseUrl}/verify-email`,
+        emailRedirectTo: `${baseUrl}/`,
         data: {
           name,
           role: selectedRole,
