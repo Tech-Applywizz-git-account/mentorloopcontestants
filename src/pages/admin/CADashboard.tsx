@@ -25,6 +25,17 @@ import { Input } from '@/components/ui/input';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Enums } from '@/integrations/supabase/types';
 
 export default function CADashboard() {
   const { profile } = useAuth();
@@ -43,6 +54,18 @@ export default function CADashboard() {
   const [onboardedMentorsByUser, setOnboardedMentorsByUser] = useState<Record<string, any[]>>({});
   const [pendingMentorsByUser, setPendingMentorsByUser] = useState<Record<string, any[]>>({});
   const recordsPerPage = 5;
+  
+  // Role change state
+  const [roleChangeDialog, setRoleChangeDialog] = useState({
+    open: false,
+    userId: '',
+    userName: '',
+    currentRole: '' as Enums<'user_role'>,
+    newRole: '' as Enums<'user_role'>,
+  });
+
+  // Available roles
+  const availableRoles: Enums<'user_role'>[] = ['user', 'CA', 'CA TL', 'TECH', 'TECH TL', 'super_admin'];
 
   // Fetch real data from database
   useEffect(() => {
@@ -193,6 +216,60 @@ export default function CADashboard() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [profile]);
 
+  // Handle role change request
+  const handleRoleChangeRequest = (userId: string, userName: string, currentRole: Enums<'user_role'>, newRole: Enums<'user_role'>) => {
+    setRoleChangeDialog({
+      open: true,
+      userId,
+      userName,
+      currentRole,
+      newRole,
+    });
+  };
+
+  // Confirm role change
+  const confirmRoleChange = async () => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: roleChangeDialog.newRole })
+        .eq('id', roleChangeDialog.userId);
+
+      if (error) {
+        console.error('Error updating role:', error);
+      } else {
+        // Refresh the data
+        const { data, error: fetchError } = await supabase
+          .from('profiles')
+          .select('*')
+          .neq('role', 'super_admin')
+          .order('name', { ascending: true });
+
+        if (!fetchError) {
+          const transformedData = data?.map((record) => ({
+            id: record.id,
+            name: record.name,
+            role: record.role,
+            email: record.email,
+            phone: 'N/A'
+          })) || [];
+          
+          setTlRecords(transformedData);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating role:', error);
+    } finally {
+      setRoleChangeDialog({
+        open: false,
+        userId: '',
+        userName: '',
+        currentRole: 'user',
+        newRole: 'user',
+      });
+    }
+  };
+
   // Calculate pagination with search filter - Only show users with pending mentors
   const contestantsWithPending = tlRecords.filter((record) => 
     pendingMentorsByUser[record.id] && pendingMentorsByUser[record.id].length > 0
@@ -302,7 +379,23 @@ export default function CADashboard() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>{record.role}</TableCell>
+                        <TableCell>
+                          <Select
+                            value={record.role}
+                            onValueChange={(value) => handleRoleChangeRequest(record.id, record.name, record.role as Enums<'user_role'>, value as Enums<'user_role'>)}
+                          >
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder="Select role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableRoles.map((role) => (
+                                <SelectItem key={role} value={role}>
+                                  {role}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
                         <TableCell>{record.email}</TableCell>
                         <TableCell>{record.phone}</TableCell>
                         <TableCell className="text-right">
@@ -412,7 +505,23 @@ export default function CADashboard() {
                             <TableRow key={userId}>
                               <TableCell>{index + 1}</TableCell>
                               <TableCell>{user.name}</TableCell>
-                              <TableCell>{user.role}</TableCell>
+                              <TableCell>
+                                <Select
+                                  value={user.role}
+                                  onValueChange={(value) => handleRoleChangeRequest(userId, user.name, user.role as Enums<'user_role'>, value as Enums<'user_role'>)}
+                                >
+                                  <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Select role" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {availableRoles.map((role) => (
+                                      <SelectItem key={role} value={role}>
+                                        {role}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
                               <TableCell>{user.email}</TableCell>
                               <TableCell>
                                 <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">
@@ -486,7 +595,23 @@ export default function CADashboard() {
                             <TableRow key={userId}>
                               <TableCell>{index + 1}</TableCell>
                               <TableCell>{user.name}</TableCell>
-                              <TableCell>{user.role}</TableCell>
+                              <TableCell>
+                                <Select
+                                  value={user.role}
+                                  onValueChange={(value) => handleRoleChangeRequest(userId, user.name, user.role as Enums<'user_role'>, value as Enums<'user_role'>)}
+                                >
+                                  <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Select role" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {availableRoles.map((role) => (
+                                      <SelectItem key={role} value={role}>
+                                        {role}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
                               <TableCell>{user.email}</TableCell>
                               <TableCell>
                                 <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">
@@ -560,7 +685,23 @@ export default function CADashboard() {
                             <TableRow key={userId}>
                               <TableCell>{index + 1}</TableCell>
                               <TableCell>{user.name}</TableCell>
-                              <TableCell>{user.role}</TableCell>
+                              <TableCell>
+                                <Select
+                                  value={user.role}
+                                  onValueChange={(value) => handleRoleChangeRequest(userId, user.name, user.role as Enums<'user_role'>, value as Enums<'user_role'>)}
+                                >
+                                  <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Select role" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {availableRoles.map((role) => (
+                                      <SelectItem key={role} value={role}>
+                                        {role}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
                               <TableCell>{user.email}</TableCell>
                               <TableCell>
                                 <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
@@ -595,6 +736,22 @@ export default function CADashboard() {
           </Card>
         )}
       </div>
+
+      {/* Role Change Confirmation Dialog */}
+      <AlertDialog open={roleChangeDialog.open} onOpenChange={(open) => setRoleChangeDialog({...roleChangeDialog, open})}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Role Change</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to change the role for <strong>{roleChangeDialog.userName}</strong> from <strong>{roleChangeDialog.currentRole}</strong> to <strong>{roleChangeDialog.newRole}</strong>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRoleChange}>Confirm</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, ChevronDown, Check } from 'lucide-react';
- import { X, Ban } from "lucide-react"; // ✅ Lucide icons
+import { X, Ban } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
