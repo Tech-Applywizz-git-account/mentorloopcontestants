@@ -1107,8 +1107,8 @@ const Auth = () => {
 
         <Card className="border-border/50 backdrop-blur-sm bg-card/50">
           <CardHeader>
-            <CardTitle>Get Started</CardTitle>
-            <CardDescription>Sign in or create your account</CardDescription>
+            <CardTitle></CardTitle>
+            <CardDescription></CardDescription>
           </CardHeader>
           <CardContent>
             {!showForgotPassword ? (
@@ -1121,7 +1121,7 @@ const Auth = () => {
                 <TabsContent value="signin">
                   <form onSubmit={handleSignIn} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="signin-email">Email</Label>
+                      <Label htmlFor="signin-email"></Label>
                       <Input
                         id="signin-email"
                         name="email"
