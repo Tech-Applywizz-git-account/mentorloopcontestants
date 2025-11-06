@@ -1079,7 +1079,7 @@ const Auth = () => {
     const baseUrl = window.location.origin;
     
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${baseUrl}/reset-password`,
+      redirectTo: `${baseUrl}/`,
     });
 
     if (error) {
