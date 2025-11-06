@@ -1121,7 +1121,7 @@ const Auth = () => {
                 <TabsContent value="signin">
                   <form onSubmit={handleSignIn} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="signin-email"></Label>
+                      <Label htmlFor="signin-email">Email</Label>
                       <Input
                         id="signin-email"
                         name="email"
@@ -1240,7 +1240,7 @@ const Auth = () => {
               <div>
                 <CardHeader>
                   <CardTitle>Reset Password</CardTitle>
-                  <CardDescription>Enter your email to receive a password reset link</CardDescription>
+                  <CardDescription></CardDescription>
                 </CardHeader>
                 <form onSubmit={handleForgotPassword} className="space-y-4">
                   <div className="space-y-2">
