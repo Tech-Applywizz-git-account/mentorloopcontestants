@@ -1126,7 +1126,7 @@ const Auth = () => {
                         id="signin-email"
                         name="email"
                         type="email"
-                        placeholder="you@example.com"
+                        placeholder="xxxx@applywizz.com"
                         required
                       />
                     </div>
@@ -1186,7 +1186,7 @@ const Auth = () => {
                         id="signup-email"
                         name="email"
                         type="email"
-                        placeholder="you@example.com"
+                        placeholder="xxxx@applywizz.com"
                         required
                       />
                     </div>
@@ -1249,7 +1249,7 @@ const Auth = () => {
                       id="forgot-email"
                       name="email"
                       type="email"
-                      placeholder="you@example.com"
+                      placeholder="xxxx@applywizz.com"
                       required
                     />
                   </div>
