@@ -109,7 +109,7 @@ const ResetPassword = () => {
         <Card className="border-border/50 backdrop-blur-sm bg-card/50">
           <CardHeader>
             <CardTitle>Reset Password</CardTitle>
-            <CardDescription>Enter your new password below</CardDescription>
+            <CardDescription></CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleResetPassword} className="space-y-4">
