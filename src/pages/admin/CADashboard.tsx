@@ -270,12 +270,8 @@ export default function CADashboard() {
     }
   };
 
-  // Calculate pagination with search filter - Only show users with pending mentors
-  const contestantsWithPending = tlRecords.filter((record) => 
-    pendingMentorsByUser[record.id] && pendingMentorsByUser[record.id].length > 0
-  );
-  
-  const filteredRecords = contestantsWithPending.filter((record) =>
+  // Calculate pagination with search filter - Show all contestants regardless of mentor status
+  const filteredRecords = tlRecords.filter((record) =>
     record.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
   const totalPages = Math.ceil(filteredRecords.length / recordsPerPage);

@@ -10,6 +10,8 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
+import Index from "./pages/Index";
+import EmailConfirmationHandler from "./pages/EmailConfirmationHandler";
 import Dashboard from "./pages/user/Dashboard";
 import MentorForm from "./pages/user/MentorForm";
 import EditMentor from "./pages/user/EditMentor";
@@ -25,9 +27,6 @@ import AdminLeaderboard from "./pages/admin/Leaderboard";
 import AdminMarketplace from "./pages/admin/Marketplace";
 import NotFound from "./pages/NotFound";
 
-// Add Email Confirmation Handler
-import EmailConfirmationHandler from "./pages/EmailConfirmationHandler";
-
 const queryClient = new QueryClient();
 
 const AppRoutes = () => {
@@ -38,48 +37,54 @@ const AppRoutes = () => {
   // Always allow access to reset password and email verification pages
   return (
     <Routes>
+      <Route path="/" element={<Index />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/verify-email" element={<EmailConfirmationHandler />} />
+      <Route path="/auth" element={<Auth />} />
       
-      {!profile ? (
-        <>
-          <Route path="/auth" element={<Auth />} />
-          <Route path="*" element={<Navigate to="/auth" />} />
-        </>
-      ) : profile.role === "super_admin" ? (
-        <>
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute requireRole="super_admin">
-                <AdminLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="overview" element={<Overview />} />
-            <Route path="ca-dashboard" element={<CADashboard />} />
-            <Route path="contestant/:id" element={<ContestantDashboard />} />
-            <Route path="user/:id/mentors/:status" element={<UserMentorsByStatus />} />
-            <Route path="leaderboard" element={<AdminLeaderboard />} />
-            <Route path="marketplace" element={<AdminMarketplace />} />
-            <Route index element={<Navigate to="/admin/ca-dashboard" replace />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/admin/ca-dashboard" />} />
-        </>
-      ) : (
-        <>
-          <Route path="/" element={<ProtectedRoute><UserLayout /></ProtectedRoute>}>
-            <Route index element={<Dashboard />} />
-            <Route path="mentor-form" element={<MentorForm />} />
-            <Route path="edit-mentor/:id" element={<EditMentor />} />
-            <Route path="history" element={<History />} />
-            <Route path="leaderboard" element={<Leaderboard />} />
-            <Route path="score" element={<Score />} />
-            <Route path="marketplace" element={<Marketplace />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/" />} />
-        </>
+      {/* Routes for super admins */}
+      {profile && profile.role === "super_admin" && (
+        <Route
+          path="/admin/*"
+          element={
+            <ProtectedRoute requireRole="super_admin">
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="overview" element={<Overview />} />
+          <Route path="ca-dashboard" element={<CADashboard />} />
+          <Route path="contestant/:id" element={<ContestantDashboard />} />
+          <Route path="user/:id/mentors/:status" element={<UserMentorsByStatus />} />
+          <Route path="leaderboard" element={<AdminLeaderboard />} />
+          <Route path="marketplace" element={<AdminMarketplace />} />
+          <Route index element={<Navigate to="/admin/ca-dashboard" replace />} />
+        </Route>
       )}
+      
+      {/* Routes for regular users */}
+      {profile && profile.role !== "super_admin" && profile.role !== null && (
+        <Route path="/dashboard/*" element={<ProtectedRoute><UserLayout /></ProtectedRoute>}>
+          <Route index element={<Dashboard />} />
+          <Route path="mentor-form" element={<MentorForm />} />
+          <Route path="edit-mentor/:id" element={<EditMentor />} />
+          <Route path="history" element={<History />} />
+          <Route path="leaderboard" element={<Leaderboard />} />
+          <Route path="score" element={<Score />} />
+          <Route path="marketplace" element={<Marketplace />} />
+        </Route>
+      )}
+      
+      {/* Redirect based on user role */}
+      <Route path="*" element={
+        profile ? (
+          profile.role === "super_admin" ? 
+          <Navigate to="/admin/ca-dashboard" /> : 
+          <Navigate to="/dashboard" />
+        ) : (
+          <Navigate to="/auth" />
+        )
+      } />
     </Routes>
   );
 };

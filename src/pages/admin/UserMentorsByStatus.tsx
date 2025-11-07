@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronDown, Check, Ban } from 'lucide-react';
+import { ChevronLeft, ChevronDown, ChevronRight, Check, Ban } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -163,7 +163,7 @@ export default function UserMentorsByStatus() {
                 <TableHead>Domain</TableHead>
                 <TableHead>Submitted At</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -194,36 +194,12 @@ export default function UserMentorsByStatus() {
                     <TableCell>{mentor.domain}</TableCell>
                     <TableCell>{new Date(mentor.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>{getStatusBadge(mentor.status)}</TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className='bg-orange-500'>
-                            <ChevronDown className="h-4 w-4 text-black" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => handleStatusChange(mentor.id, 'onboarded')}
-                            className="flex items-center space-x-2"
-                          >
-                            <Check className="w-4 h-4 text-green-600" />
-                            <span>Onboarded</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleStatusChange(mentor.id, 'declined')}
-                            className="flex items-center space-x-2"
-                          >
-                            <Ban className="w-4 h-4 text-red-500" />
-                            <span>Decline</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center text-muted-foreground">
                     No {status} mentors found
                   </TableCell>
                 </TableRow>

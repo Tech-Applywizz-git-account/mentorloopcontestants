@@ -957,9 +957,9 @@ const Auth = () => {
     const emailConfirmationError = searchParams.get("emailConfirmationError");
     
     if (emailConfirmed === "true") {
-      alert("Email confirmed successfully! You can now sign in.");
+      toast.success("Email confirmed successfully! You can now sign in.");
     } else if (emailConfirmationError === "true") {
-      alert("There was an issue with email confirmation. Please try signing in or contact support.");
+      toast.error("There was an issue with email confirmation. Please try signing in or contact support.");
     }
   }, [location]);
 
@@ -985,7 +985,7 @@ const Auth = () => {
         .single();
 
       if (profileError) {
-        alert("Error loading profile. Please try again.");
+        toast.error("Error loading profile. Please try again.");
         setLoading(false);
         return;
       }
@@ -993,16 +993,16 @@ const Auth = () => {
       // Redirect based on role
       console.log("User role:", profile?.role);
       if (profile?.role && profile.role.trim().toLowerCase() === 'super_admin') {
-        alert("Welcome back, Admin!");
+        toast.success("Welcome back, Admin!");
         navigate("/admin");
       } else {
         // All other roles (CA, CA TL, TECH, TECH TL, user) go to user pages
-        alert("Welcome back!");
+        toast.success("Welcome back!");
         navigate("/");
       }
       setLoading(false);
     } else {
-      alert("Invalid credentials. Please try again.");
+      toast.error("Invalid credentials. Please try again.");
       setLoading(false);
     }
   };
@@ -1021,7 +1021,7 @@ const Auth = () => {
 
       toast.error("Invalid email domain. Please use an email ending with @applywizz.com");
 
-      alert("Invalid email domain. Please use an email ending with @applywizz.com");
+      // alert("Invalid email domain. Please use an email ending with @applywizz.com");
 
       setLoading(false);
       return;
@@ -1052,18 +1052,18 @@ const Auth = () => {
     } else if (data.user) {
       // Check if email confirmation is required
       if (data.user.identities && data.user.identities.length === 0) {
-        alert("Please check your email to confirm your account before signing in.");
+        toast.success("Please check your email to confirm your account before signing in.");
       } else if (data.session) {
         // Auto sign in is enabled
-        alert("Account created successfully! Welcome!");
+        toast.success("Account created successfully! Welcome!");
         navigate("/");
       } else {
         // Email confirmation required
-        alert("Confirmation email sent! Please check your inbox to verify your account. You'll be redirected to sign in after confirmation.");
+        toast.success("Confirmation email sent! Please check your inbox to verify your account. You'll be redirected to sign in after confirmation.");
       }
       setLoading(false);
     } else {
-      alert("Something went wrong. Please try again.");
+      toast.error("Something went wrong. Please try again.");
       setLoading(false);
     }
   };
@@ -1083,10 +1083,10 @@ const Auth = () => {
     });
 
     if (error) {
-      alert(error.message);
+      toast.error(error.message);
       setLoading(false);
     } else {
-      alert("Password reset email sent! Please check your inbox.");
+      toast.success("Password reset email sent! Please check your inbox.");
       setShowForgotPassword(false);
       setLoading(false);
     }
@@ -1107,8 +1107,12 @@ const Auth = () => {
 
         <Card className="border-border/50 backdrop-blur-sm bg-card/50">
           <CardHeader>
+
             <CardTitle></CardTitle>
             <CardDescription></CardDescription>
+
+            {/* <CardTitle>Get Started</CardTitle> */}
+            {/* <CardDescription>Sign in or create your account</CardDescription> */}
           </CardHeader>
           <CardContent>
             {!showForgotPassword ? (
@@ -1240,15 +1244,20 @@ const Auth = () => {
               <div>
                 <CardHeader>
                   <CardTitle>Reset Password</CardTitle>
+
                   <CardDescription></CardDescription>
+
+                  {/* <CardDescription>Enter your email to receive a password reset link</CardDescription> */}
+
                 </CardHeader>
                 <form onSubmit={handleForgotPassword} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="forgot-email">Email</Label>
+                    <Label htmlFor="forgot-email"></Label>
                     <Input
                       id="forgot-email"
                       name="email"
                       type="email"
+
                       placeholder="xxxx@applywizz.com"
                       required
                     />

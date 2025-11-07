@@ -5,10 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
-import { Plus, TrendingUp, Target, Award, Zap } from "lucide-react";
+import { Plus, TrendingUp, Target, Award, Zap, ChevronDown, Search, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const CONTEST_START = new Date("2025-10-21T00:00:00+05:30");
 const CONTEST_END = new Date("2025-11-30T23:59:59+05:30");
@@ -22,7 +29,14 @@ const Dashboard = () => {
     totalPoints: 0,
   });
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [mentors, setMentors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  // State to track engagement status for each mentor
+  const [mentorEngagement, setMentorEngagement] = useState<Record<string, string>>({});
+  // State to track which mentors have been awarded points
+  const [pointsAwarded, setPointsAwarded] = useState<Record<string, Record<string, boolean>>>({});
+  // State for search functionality
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     fetchDashboardData();
@@ -32,15 +46,18 @@ const Dashboard = () => {
     if (!profile) return;
 
     // Fetch contest window stats
-    const { data: mentors } = await supabase
+    const { data: mentorsData } = await supabase
       .from("mentors")
       .select("*")
       .eq("created_by_user_id", profile.id)
       .gte("created_at", CONTEST_START.toISOString())
       .lte("created_at", CONTEST_END.toISOString());
 
-    const submissions = mentors?.length || 0;
-    const onboarded = mentors?.filter((m) => m.status === "onboarded").length || 0;
+    const submissions = mentorsData?.length || 0;
+    const onboarded = mentorsData?.filter((m) => m.status === "onboarded").length || 0;
+
+    // Set mentors data for the table
+    setMentors(mentorsData || []);
 
     // Fetch ALL points from points_ledger (accurate calculation)
     const { data: allPoints } = await supabase
@@ -74,6 +91,80 @@ const Dashboard = () => {
     if (points >= 250) return { level: "Silver", progress: ((points - 250) / 250) * 100, next: 500 };
     if (points >= 100) return { level: "Bronze", progress: ((points - 100) / 150) * 100, next: 250 };
     return { level: "None", progress: (points / 100) * 100, next: 100 };
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="secondary">Pending</Badge>;
+      case 'onboarded':
+        return <Badge variant="default">Onboarded</Badge>;
+      case 'declined':
+        return <Badge variant="destructive">Declined</Badge>;
+      default:
+        return <Badge variant="outline">Unknown</Badge>;
+    }
+  };
+
+  // Function to handle mentor engagement status updates
+  const handleEngagementUpdate = (mentorId: string, status: string) => {
+    setMentorEngagement(prev => ({
+      ...prev,
+      [mentorId]: status
+    }));
+    
+    // In a real implementation, you would save this to the database
+    // For now, we'll just show an alert
+    alert(`Marked mentor as: ${status}`);
+  };
+
+  // Function to handle awarding points for engagement
+  const handleAwardPoints = async (mentorId: string, status: string, mentor: any) => {
+    // Check if points have already been awarded for this mentor and status
+    if (pointsAwarded[mentorId]?.[status]) {
+      if (confirm('Points already awarded for this action. Do you want to continue?')) {
+        return;
+      }
+    }
+
+    // Determine points based on status
+    const points = status === "Positive Engagement" ? 15 : 10;
+
+    try {
+      // Award points to the mentor's owner
+      const { error } = await supabase.from('points_ledger').insert({
+        user_id: mentor.created_by_user_id,
+        mentor_id: mentorId,
+        delta: points,
+        reason: 'onboard'
+      });
+
+      if (error) throw error;
+
+      // Update local state to mark points as awarded
+      setPointsAwarded(prev => ({
+        ...prev,
+        [mentorId]: {
+          ...prev[mentorId],
+          [status]: true
+        }
+      }));
+
+      // Update the stats to reflect new points
+      setStats(prev => ({
+        ...prev,
+        totalPoints: prev.totalPoints + points
+      }));
+
+      if (!confirm(`${points} points awarded to mentor owner for: ${status}. Do you want to continue?`)) {
+        return;
+      }
+    } catch (error) {
+      console.error('Error awarding points:', error);
+      if (!confirm('Error awarding points. Do you want to continue?')) {
+        return;
+      }
+    }
   };
 
   const badgeProgress = getBadgeProgress();
@@ -157,7 +248,7 @@ const Dashboard = () => {
       <Button
         size="lg"
         className="w-full h-14 sm:h-16 text-base sm:text-lg font-semibold animate-glow-pulse"
-        onClick={() => navigate("/mentor-form")}
+        onClick={() => navigate("/dashboard/mentor-form")}
       >
         <Plus className="h-5 w-5 sm:h-6 sm:w-6 mr-2" />
         <span className="hidden xs:inline">Add Mentor Now</span>
@@ -165,45 +256,113 @@ const Dashboard = () => {
         <Zap className="h-4 w-4 sm:h-5 sm:w-5 ml-2 text-accent" />
       </Button>
 
-      {/* Recent Activity */}
+      {/* Mentors Table */}
       <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
+          <CardTitle>My Mentors</CardTitle>
         </CardHeader>
         <CardContent>
-          {recentActivity.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              No activity yet. Submit your first mentor to get started!
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {recentActivity.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                >
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    {item.reason === "submission" ? (
-                      <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
-                    ) : (
-                      <Award className="h-4 w-4 sm:h-5 sm:w-5 text-secondary flex-shrink-0" />
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-xs sm:text-sm font-medium truncate">
-                        {item.reason === "submission" ? "Submitted" : "Onboarded"}: {item.mentors?.mentor_name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(item.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant={item.delta > 10 ? "default" : "secondary"} className="self-start sm:self-auto">
-                    +{item.delta} pts
-                  </Badge>
-                </div>
-              ))}
+          <div className="mb-4">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search mentors by name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8"
+              />
             </div>
-          )}
+          </div>
+          
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>S.No</TableHead>
+                <TableHead>Mentor Name</TableHead>
+                <TableHead>LinkedIn</TableHead>
+                <TableHead>Domain</TableHead>
+                <TableHead>Submitted At</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {mentors.length > 0 ? (
+                mentors
+                  .filter(mentor => 
+                    mentor.mentor_name.toLowerCase().includes(searchTerm.toLowerCase())
+                  )
+                  .map((mentor, index) => (
+                    <TableRow key={mentor.id}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <span>{mentor.mentor_name}</span>
+                          {mentor.edited_by_user_id && (
+                            <div className="relative">
+                              <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                              <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 opacity-75 animate-ping" />
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <a 
+                          href={mentor.linkedin_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-blue-500 hover:underline"
+                        >
+                          LinkedIn Profile
+                        </a>
+                      </TableCell>
+                      <TableCell>{mentor.domain}</TableCell>
+                      <TableCell>{new Date(mentor.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell>{getStatusBadge(mentor.status)}</TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <ChevronDown className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                handleEngagementUpdate(mentor.id, "Connection Accepted");
+                                handleAwardPoints(mentor.id, "Connection Accepted", mentor);
+                              }}
+                            >
+                              Connection Accepted
+                              {mentorEngagement[mentor.id] === "Connection Accepted" && (
+                                <Check className="ml-2 h-4 w-4 text-green-500" />
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                handleEngagementUpdate(mentor.id, "Positive Engagement");
+                                handleAwardPoints(mentor.id, "Positive Engagement", mentor);
+                              }}
+                            >
+                              Positive Engagement
+                              {mentorEngagement[mentor.id] === "Positive Engagement" && (
+                                <Check className="ml-2 h-4 w-4 text-green-500" />
+                              )}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    No mentors found. Submit your first mentor to get started!
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>

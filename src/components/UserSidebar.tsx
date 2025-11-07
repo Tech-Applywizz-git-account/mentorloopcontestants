@@ -14,12 +14,12 @@ import {
 } from "@/components/ui/sidebar";
 
 const menuItems = [
-  { title: "Dashboard", url: "/", icon: Home },
-  { title: "Add Mentor", url: "/mentor-form", icon: FileText },
-  { title: "History", url: "/history", icon: History },
-  { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
-  { title: "Score", url: "/score", icon: Award },
-  { title: "Marketplace", url: "/marketplace", icon: ShoppingBag },
+  { title: "Dashboard", url: "/dashboard", icon: Home },
+  { title: "Add Mentor", url: "/dashboard/mentor-form", icon: FileText },
+  { title: "History", url: "/dashboard/history", icon: History },
+  { title: "Leaderboard", url: "/dashboard/leaderboard", icon: Trophy },
+  { title: "Score", url: "/dashboard/score", icon: Award },
+  { title: "Marketplace", url: "/dashboard/marketplace", icon: ShoppingBag },
 ];
 
 export function UserSidebar() {
