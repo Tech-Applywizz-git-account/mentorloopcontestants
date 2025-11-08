@@ -52,7 +52,8 @@ const Dashboard = () => {
       .select("*")
       .eq("created_by_user_id", profile.id)
       .gte("created_at", CONTEST_START.toISOString())
-      .lte("created_at", CONTEST_END.toISOString());
+      .lte("created_at", CONTEST_END.toISOString())
+      .order("created_at", { ascending: false }); // Order by created_at in descending order
 
     const submissions = mentorsData?.length || 0;
     const onboarded = mentorsData?.filter((m) => m.status === "onboarded").length || 0;
