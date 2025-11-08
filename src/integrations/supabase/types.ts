@@ -272,7 +272,7 @@ export type Database = {
     Enums: {
       mentor_status: "pending" | "onboarded" | "declined"
       notification_type: "onboarded" | "info"
-      points_reason: "submission" | "onboard"
+      points_reason: "submission" | "onboard" | "connection_accepted" | "positive_engagement"
       redemption_status: "placed" | "delivered" | "cancelled"
       user_role: "user" | "super_admin" | "CA" | "CA TL" | "TECH" | "TECH TL"
     }
@@ -404,7 +404,7 @@ export const Constants = {
     Enums: {
       mentor_status: ["pending", "onboarded", "declined"],
       notification_type: ["onboarded", "info"],
-      points_reason: ["submission", "onboard"],
+      points_reason: ["submission", "onboard", "connection_accepted", "positive_engagement"],
       redemption_status: ["placed", "delivered", "cancelled"],
       user_role: ["user", "super_admin", "CA", "CA TL", "TECH", "TECH TL"],
     },

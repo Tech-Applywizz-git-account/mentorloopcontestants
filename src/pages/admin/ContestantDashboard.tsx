@@ -1,3 +1,5 @@
+// src/pages/admin/ContestantDashboard.tsx
+
 // import { useState, useEffect } from 'react';
 // import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 // import { Button } from '@/components/ui/button';
@@ -495,60 +497,133 @@ export default function ContestantDashboard() {
         .eq('mentor_id', mentorId)
         .eq('reason', 'onboard');
 
-      // Handle point revocation when status is changed to declined
+      // // Handle point revocation when status is changed to declined
+      // // Also revoke points when changing from onboarded to another status
+      // if (newStatus === 'declined' || (currentMentor.status === 'onboarded' && newStatus !== 'onboarded')) {
+      //   // Only revoke points if they were previously awarded
+      //   const hasPoints = !pointsCheckError && existingPoints && existingPoints.length > 0;
+        
+      //   if (hasPoints) {
+      //     // Revoke the 15 points by adding -15 to the ledger
+      //     try {
+      //       const { error: revokeError } = await supabase
+      //         .from('points_ledger')
+      //         .insert({
+      //           user_id: currentMentor.created_by_user_id,
+      //           mentor_id: mentorId,
+      //           delta: -15, // Revoking 15 points
+      //           reason: 'onboard',
+      //         });
+
+      //       if (revokeError) {
+      //         console.error('Error revoking points:', revokeError);
+      //         alert(`Error revoking points: ${revokeError.message || 'Unknown error'}`);
+      //       } else {
+      //         alert(`15 points revoked from ${contestantInfo?.name}`);
+      //       }
+      //     } catch (revokeException) {
+      //       console.error('Exception while revoking points:', revokeException);
+      //       alert(`Exception while revoking points: ${revokeException.message || 'Unknown error'}`);
+      //     }
+      //   }
+      // }
+
+            // Handle point revocation when status is changed to declined
       // Also revoke points when changing from onboarded to another status
       if (newStatus === 'declined' || (currentMentor.status === 'onboarded' && newStatus !== 'onboarded')) {
-        // Only revoke points if they were previously awarded
-        const hasPoints = !pointsCheckError && existingPoints && existingPoints.length > 0;
-        
-        if (hasPoints) {
-          // Revoke the 15 points by adding -15 to the ledger
-          try {
-            const { error: revokeError } = await supabase
-              .from('points_ledger')
-              .insert({
-                user_id: currentMentor.created_by_user_id,
-                mentor_id: mentorId,
-                delta: -15, // Revoking 15 points
-                reason: 'onboard',
-              });
+        // Check if a record already exists for this mentor and user
+        const { data: existingRecords, error: fetchError } = await supabase
+          .from('points_ledger')
+          .select('id, delta')
+          .eq('mentor_id', mentorId)
+          .eq('user_id', currentMentor.created_by_user_id);
 
-            if (revokeError) {
-              console.error('Error revoking points:', revokeError);
-              alert(`Error revoking points: ${revokeError.message || 'Unknown error'}`);
+        if (!fetchError && existingRecords && existingRecords.length > 0) {
+          // Record exists, update the delta by subtracting 15 points
+          const existingRecord = existingRecords[0];
+          const newDelta = existingRecord.delta - 15;
+          
+          try {
+            const { error: updateError } = await supabase
+              .from('points_ledger')
+              .update({ delta: newDelta, reason: 'onboard' })
+              .eq('id', existingRecord.id);
+
+            if (updateError) {
+              console.error('Error revoking points:', updateError);
+              alert(`Error revoking points: ${updateError.message || 'Unknown error'}`);
             } else {
-              alert(`15 points revoked from ${contestantInfo?.name}`);
+              alert(`15 points revoked from ${contestantInfo?.name}. New total: ${newDelta} points`);
             }
-          } catch (revokeException) {
-            console.error('Exception while revoking points:', revokeException);
-            alert(`Exception while revoking points: ${revokeException.message || 'Unknown error'}`);
+          } catch (updateException) {
+            console.error('Exception while updating points:', updateException);
+            alert(`Exception while updating points: ${updateException.message || 'Unknown error'}`);
           }
+        } else {
+          // No existing record found, show an error message
+          alert(`No existing points record found for this mentor. Cannot revoke points.`);
         }
       }
 
-      // Handle point awarding when status is changed to onboarded
-      if (newStatus === 'onboarded') {
-        // Award 15 points to the mentor's owner
-        // Allow re-awarding of points when changing from declined back to onboarded
-        try {
-          const { error: pointsError } = await supabase
-            .from('points_ledger')
-            .insert({
-              user_id: currentMentor.created_by_user_id,
-              mentor_id: mentorId,
-              delta: 15, // Awarding 15 points
-              reason: 'onboard',
-            });
+      // // Handle point awarding when status is changed to onboarded
+      // if (newStatus === 'onboarded') {
+      //   // Award 15 points to the mentor's owner
+      //   // Allow re-awarding of points when changing from declined back to onboarded
+      //   try {
+      //     const { error: pointsError } = await supabase
+      //       .from('points_ledger')
+      //       .insert({
+      //         user_id: currentMentor.created_by_user_id,
+      //         mentor_id: mentorId,
+      //         delta: 15, // Awarding 15 points
+      //         reason: 'onboard',
+      //       });
 
-          if (pointsError) {
-            console.error('Error awarding points:', pointsError);
-            alert(`Error awarding points to mentor owner: ${pointsError.message || 'Unknown error'}`);
-          } else {
-            alert(`15 points successfully awarded to ${contestantInfo?.name}`);
+      //     if (pointsError) {
+      //       console.error('Error awarding points:', pointsError);
+      //       alert(`Error awarding points to mentor owner: ${pointsError.message || 'Unknown error'}`);
+      //     } else {
+      //       alert(`15 points successfully awarded to ${contestantInfo?.name}`);
+      //     }
+      //   } catch (pointsException) {
+      //     console.error('Exception while awarding points:', pointsException);
+      //     alert(`Exception while awarding points to mentor owner: ${pointsException.message || 'Unknown error'}`);
+      //   }
+      // }
+
+            // Handle point awarding when status is changed to onboarded
+      if (newStatus === 'onboarded') {
+        // Check if a record already exists for this mentor and user
+        const { data: existingRecords, error: fetchError } = await supabase
+          .from('points_ledger')
+          .select('id, delta')
+          .eq('mentor_id', mentorId)
+          .eq('user_id', currentMentor.created_by_user_id);
+
+        if (!fetchError && existingRecords && existingRecords.length > 0) {
+          // Record exists, update the delta by adding 15 points
+          const existingRecord = existingRecords[0];
+          const newDelta = existingRecord.delta + 15;
+          
+          try {
+            const { error: updateError } = await supabase
+              .from('points_ledger')
+              .update({ delta: newDelta, reason: 'onboard' })
+              .eq('id', existingRecord.id);
+
+            if (updateError) {
+              console.error('Error awarding points:', updateError);
+              alert(`Error awarding points to mentor owner: ${updateError.message || 'Unknown error'}`);
+            } else {
+              alert(`15 points successfully awarded to ${contestantInfo?.name}. New total: ${newDelta} points`);
+            }
+          } catch (updateException) {
+            console.error('Exception while updating points:', updateException);
+            alert(`Exception while updating points to mentor owner: ${updateException.message || 'Unknown error'}`);
           }
-        } catch (pointsException) {
-          console.error('Exception while awarding points:', pointsException);
-          alert(`Exception while awarding points to mentor owner: ${pointsException.message || 'Unknown error'}`);
+        } else {
+          // No existing record found, show an error message
+          alert(`No existing points record found for this mentor. Cannot award points.`);
         }
       }
       

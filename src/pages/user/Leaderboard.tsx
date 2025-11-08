@@ -44,8 +44,14 @@ const Leaderboard = () => {
         const onboarded = mentors?.filter((m) => m.status === "onboarded") || [];
         const onboardedCount = onboarded.length;
         
-        // Calculate points from contest window only
-        const points = submissions * 10 + onboardedCount * 15;
+        // Fetch ALL points from points_ledger for accurate calculation (same as user dashboard)
+        const { data: allPoints } = await supabase
+          .from("points_ledger")
+          .select("delta")
+          .eq("user_id", p.id);
+
+        // Calculate accurate total points by summing all delta values (same as user dashboard)
+        const points = allPoints?.reduce((sum, entry) => sum + entry.delta, 0) || 0;
 
         // Get latest onboarded timestamp for tie-breaker
         const lastOnboarded = onboarded.length > 0

@@ -1,3 +1,4 @@
+//src/pages/user/Dashboard.tsx
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -76,6 +77,43 @@ const Dashboard = () => {
       .order("created_at", { ascending: false })
       .limit(5);
 
+    // Fetch current engagement status for each mentor
+    if (mentorsData && mentorsData.length > 0) {
+      const updatedEngagementStatus: Record<string, string> = {};
+      
+      for (const mentor of mentorsData) {
+        const { data: pointsData } = await supabase
+          .from("points_ledger")
+          .select("reason, delta")
+          .eq("mentor_id", mentor.id)
+          .eq("user_id", profile.id)
+          .limit(1);
+        
+        if (pointsData && pointsData.length > 0) {
+          const reason = pointsData[0].reason;
+          // Map reason to display text
+          switch (reason) {
+            case 'submission':
+              updatedEngagementStatus[mentor.id] = "Submitted";
+              break;
+            case 'connection_accepted':
+              updatedEngagementStatus[mentor.id] = "Connection Accepted";
+              break;
+            case 'positive_engagement':
+              updatedEngagementStatus[mentor.id] = "Positive Engagement";
+              break;
+            case 'onboard':
+              updatedEngagementStatus[mentor.id] = "Onboarded";
+              break;
+            default:
+              updatedEngagementStatus[mentor.id] = reason;
+          }
+        }
+      }
+      
+      setMentorEngagement(updatedEngagementStatus);
+    }
+
     setStats({
       submissions,
       onboarded,
@@ -120,50 +158,71 @@ const Dashboard = () => {
 
   // Function to handle awarding points for engagement
   const handleAwardPoints = async (mentorId: string, status: string, mentor: any) => {
-    // Check if points have already been awarded for this mentor and status
-    if (pointsAwarded[mentorId]?.[status]) {
-      if (confirm('Points already awarded for this action. Do you want to continue?')) {
-        return;
-      }
-    }
-
-    // Determine points based on status
-    const points = status === "Positive Engagement" ? 15 : 10;
-
     try {
-      // Award points to the mentor's owner
-      const { error } = await supabase.from('points_ledger').insert({
-        user_id: mentor.created_by_user_id,
-        mentor_id: mentorId,
-        delta: points,
-        reason: 'onboard'
-      });
+      // Check if a record already exists for this mentor and user
+      const { data: existingRecords, error: fetchError } = await supabase
+        .from('points_ledger')
+        .select('id, delta, reason')
+        .eq('mentor_id', mentorId)
+        .eq('user_id', mentor.created_by_user_id);
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
 
-      // Update local state to mark points as awarded
-      setPointsAwarded(prev => ({
-        ...prev,
-        [mentorId]: {
-          ...prev[mentorId],
-          [status]: true
+      if (existingRecords && existingRecords.length > 0) {
+        // Record exists, determine next stage based on current reason and status
+        const existingRecord = existingRecords[0];
+        let newDelta = existingRecord.delta;
+        let newReason = existingRecord.reason;
+
+        // Implement the flow: submission -> connection_accepted -> positive_engagement -> onboard
+        if (existingRecord.reason === 'submission' && status === "Connection Accepted") {
+          newDelta = existingRecord.delta + 10; // 10 + 10 = 20
+          newReason = 'connection_accepted';
+        } else if (existingRecord.reason === 'connection_accepted' && status === "Positive Engagement") {
+          newDelta = existingRecord.delta + 15; // 20 + 15 = 35
+          newReason = 'positive_engagement';
+        } else if (existingRecord.reason === 'positive_engagement' && (status === "Onboarded" || status === "onboarded")) {
+          newDelta = existingRecord.delta + 10; // 35 + 10 = 45
+          newReason = 'onboard';
+        } else {
+          window.alert(`Invalid transition from ${existingRecord.reason} (${existingRecord.delta} points) to ${status}`);
+          return;
         }
-      }));
 
-      // Update the stats to reflect new points
-      setStats(prev => ({
-        ...prev,
-        totalPoints: prev.totalPoints + points
-      }));
+        // Update the record with new delta and reason
+        const { error: updateError } = await supabase
+          .from('points_ledger')
+          .update({ delta: newDelta, reason: newReason })
+          .eq('id', existingRecord.id);
 
-      if (!confirm(`${points} points awarded to mentor owner for: ${status}. Do you want to continue?`)) {
-        return;
+        if (updateError) throw updateError;
+
+        window.alert(`Points updated successfully. New total: ${newDelta} points with reason: ${newReason}`);
+        
+        // Update local state to mark engagement
+        handleEngagementUpdate(mentorId, status);
+      } else {
+        // No existing record, insert initial record for submission
+        const { error: insertError } = await supabase.from('points_ledger').insert({
+          user_id: mentor.created_by_user_id,
+          mentor_id: mentorId,
+          delta: 10, // Initial 10 points for submission
+          reason: 'submission'
+        });
+
+        if (insertError) throw insertError;
+
+        window.alert("Initial 10 points awarded for submission.");
+        
+        // Update local state to mark engagement
+        handleEngagementUpdate(mentorId, status);
       }
+
+      // Refresh the data to ensure consistency
+      fetchDashboardData();
     } catch (error) {
       console.error('Error awarding points:', error);
-      if (!confirm('Error awarding points. Do you want to continue?')) {
-        return;
-      }
+      window.alert('Error awarding points. Please try again.');
     }
   };
 
@@ -283,7 +342,7 @@ const Dashboard = () => {
                 <TableHead>Domain</TableHead>
                 <TableHead>Submitted At</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead >Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -320,37 +379,45 @@ const Dashboard = () => {
                       <TableCell>{new Date(mentor.created_at).toLocaleDateString()}</TableCell>
                       <TableCell>{getStatusBadge(mentor.status)}</TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <ChevronDown className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem 
-                              onClick={() => {
-                                handleEngagementUpdate(mentor.id, "Connection Accepted");
-                                handleAwardPoints(mentor.id, "Connection Accepted", mentor);
-                              }}
-                            >
-                              Connection Accepted
-                              {mentorEngagement[mentor.id] === "Connection Accepted" && (
-                                <Check className="ml-2 h-4 w-4 text-green-500" />
-                              )}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => {
-                                handleEngagementUpdate(mentor.id, "Positive Engagement");
-                                handleAwardPoints(mentor.id, "Positive Engagement", mentor);
-                              }}
-                            >
-                              Positive Engagement
-                              {mentorEngagement[mentor.id] === "Positive Engagement" && (
-                                <Check className="ml-2 h-4 w-4 text-green-500" />
-                              )}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <div className="flex items-center gap-2">
+                          {/* Display current reason/status */}
+                          {mentorEngagement[mentor.id] && (
+                            <span className="text-sm text-muted-foreground">
+                              {mentorEngagement[mentor.id]}
+                            </span>
+                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <ChevronDown className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                onClick={() => {
+                                  handleEngagementUpdate(mentor.id, "Connection Accepted");
+                                  handleAwardPoints(mentor.id, "Connection Accepted", mentor);
+                                }}
+                              >
+                                Connection Accepted
+                                {mentorEngagement[mentor.id] === "Connection Accepted" && (
+                                  <Check className="ml-2 h-4 w-4 text-green-500" />
+                                )}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => {
+                                  handleEngagementUpdate(mentor.id, "Positive Engagement");
+                                  handleAwardPoints(mentor.id, "Positive Engagement", mentor);
+                                }}
+                              >
+                                Positive Engagement
+                                {mentorEngagement[mentor.id] === "Positive Engagement" && (
+                                  <Check className="ml-2 h-4 w-4 text-green-500" />
+                                )}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -370,3 +437,25 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
