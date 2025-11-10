@@ -193,13 +193,10 @@ const Dashboard = () => {
     
     // Always update comments in database
     try {
-      console.log('Attempting to save comment for mentor:', mentorId, 'Comment:', comment);
-      
-      const { data, error: updateError } = await supabase
+      const { error: updateError } = await supabase
         .from('mentors')
-        .update({ comments: comment || '' })
-        .eq('id', mentorId)
-        .select();
+        .update({ comments: comment })
+        .eq('id', mentorId);
 
       if (updateError) {
         console.error('Error saving comment:', updateError);
@@ -207,12 +204,10 @@ const Dashboard = () => {
         return false;
       }
       
-      console.log('Comment saved successfully:', data);
-      
       // Update local state
       setExistingComments(prev => ({
         ...prev,
-        [mentorId]: comment || ''
+        [mentorId]: comment
       }));
       
       return true;
@@ -619,24 +614,6 @@ const Dashboard = () => {
               Adding {engagementPopup.status === "Connection Accepted" ? "10" : "15"} points for this engagement.
             </p>
             
-            <div className="flex justify-end gap-2 mb-4">
-              <Button 
-                onClick={async () => {
-                  // Handle the engagement update without comment
-                  await handleEngagementUpdate(engagementPopup.mentorId, engagementPopup.status, '');
-                  
-                  // Handle point awarding
-                  await handleAwardPoints(
-                    engagementPopup.mentorId, 
-                    engagementPopup.status, 
-                    engagementPopup.mentor
-                  );
-                }}
-              >
-                OK
-              </Button>
-            </div>
-            
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2">Note</label>
               <Textarea
@@ -657,6 +634,7 @@ const Dashboard = () => {
               <Button 
                 variant="outline" 
                 onClick={() => {
+                  // Cancel - no updates
                   setEngagementPopup(null);
                   setEngagementComment('');
                 }}
@@ -665,25 +643,22 @@ const Dashboard = () => {
               </Button>
               <Button 
                 onClick={async () => {
-                  // Handle the engagement update with comment
-                  const success = await handleEngagementUpdate(engagementPopup.mentorId, engagementPopup.status, engagementComment);
+                  // OK - save comment, update status, and add points
+                  await handleEngagementUpdate(engagementPopup.mentorId, engagementPopup.status, engagementComment);
                   
-                  // Only proceed with point awarding if comment saving was successful
-                  if (success) {
-                    // Handle point awarding
-                    await handleAwardPoints(
-                      engagementPopup.mentorId, 
-                      engagementPopup.status, 
-                      engagementPopup.mentor
-                    );
-                  }
+                  // Handle point awarding
+                  await handleAwardPoints(
+                    engagementPopup.mentorId, 
+                    engagementPopup.status, 
+                    engagementPopup.mentor
+                  );
                   
                   // Close the popup and reset comment
                   setEngagementPopup(null);
                   setEngagementComment('');
                 }}
               >
-                Save
+                OK
               </Button>
             </div>
           </div>

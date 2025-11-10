@@ -87,7 +87,7 @@ const History = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => navigate(`/edit-mentor/${mentor.id}`)}
+                          onClick={() => navigate(`/dashboard/edit-mentor/${mentor.id}`)}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
