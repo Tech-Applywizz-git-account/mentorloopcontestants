@@ -1,22 +1,48 @@
 //src/pages/user/Dashboard.tsx
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
-import { Plus, TrendingUp, Target, Award, Zap, ChevronDown, Search, Check } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { 
+  ChevronDown, 
+  Check, 
+  Calendar, 
+  Users, 
+  Trophy,
+  MessageSquare,
+  Save,
+  X,
+  TrendingUp,
+  Target,
+  Award,
+  Plus,
+  Zap,
+  Search,
+  ChevronLeft,
+  ChevronRight
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const CONTEST_START = new Date("2025-10-21T00:00:00+05:30");
 const CONTEST_END = new Date("2025-11-30T23:59:59+05:30");
@@ -38,6 +64,19 @@ const Dashboard = () => {
   const [pointsAwarded, setPointsAwarded] = useState<Record<string, Record<string, boolean>>>({});
   // State for search functionality
   const [searchTerm, setSearchTerm] = useState("");
+  // State for pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const recordsPerPage = 7;
+  // State for engagement popup
+  const [engagementPopup, setEngagementPopup] = useState<{
+    isOpen: boolean;
+    mentorId: string;
+    status: string;
+    mentor: any;
+    message: string;
+  } | null>(null);
+  const [engagementComment, setEngagementComment] = useState('');
+  const [existingComments, setExistingComments] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchDashboardData();
@@ -146,15 +185,42 @@ const Dashboard = () => {
   };
 
   // Function to handle mentor engagement status updates
-  const handleEngagementUpdate = (mentorId: string, status: string) => {
+  const handleEngagementUpdate = async (mentorId: string, status: string, comment: string = '') => {
     setMentorEngagement(prev => ({
       ...prev,
       [mentorId]: status
     }));
     
-    // In a real implementation, you would save this to the database
-    // For now, we'll just show an alert
-    alert(`Marked mentor as: ${status}`);
+    // Always update comments in database
+    try {
+      console.log('Attempting to save comment for mentor:', mentorId, 'Comment:', comment);
+      
+      const { data, error: updateError } = await supabase
+        .from('mentors')
+        .update({ comments: comment || '' })
+        .eq('id', mentorId)
+        .select();
+
+      if (updateError) {
+        console.error('Error saving comment:', updateError);
+        alert('Error saving comment. Please try again.');
+        return false;
+      }
+      
+      console.log('Comment saved successfully:', data);
+      
+      // Update local state
+      setExistingComments(prev => ({
+        ...prev,
+        [mentorId]: comment || ''
+      }));
+      
+      return true;
+    } catch (error) {
+      console.error('Error saving comment:', error);
+      alert('Error saving comment. Please try again.');
+      return false;
+    }
   };
 
   // Function to handle awarding points for engagement
@@ -226,6 +292,14 @@ const Dashboard = () => {
       window.alert('Error awarding points. Please try again.');
     }
   };
+
+  // Function to handle comment updates
+  // const handleUpdateComment = (mentorId: string, comment: string) => {
+  //   setComments(prev => ({
+  //     ...prev,
+  //     [mentorId]: comment
+  //   }));
+  // };
 
   const badgeProgress = getBadgeProgress();
 
@@ -343,18 +417,23 @@ const Dashboard = () => {
                 <TableHead>Domain</TableHead>
                 <TableHead>Submitted At</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead >Actions</TableHead>
+                <TableHead className="text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {mentors.length > 0 ? (
-                mentors
-                  .filter(mentor => 
+                (() => {
+                  // Calculate pagination
+                  const filteredMentors = mentors.filter(mentor => 
                     mentor.mentor_name.toLowerCase().includes(searchTerm.toLowerCase())
-                  )
-                  .map((mentor, index) => (
+                  );
+                  const indexOfLastRecord = currentPage * recordsPerPage;
+                  const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
+                  const currentRecords = filteredMentors.slice(indexOfFirstRecord, indexOfLastRecord);
+                  
+                  return currentRecords.map((mentor, index) => (
                     <TableRow key={mentor.id}>
-                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{indexOfFirstRecord + index + 1}</TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           <span>{mentor.mentor_name}</span>
@@ -379,8 +458,8 @@ const Dashboard = () => {
                       <TableCell>{mentor.domain}</TableCell>
                       <TableCell>{new Date(mentor.created_at).toLocaleDateString()}</TableCell>
                       <TableCell>{getStatusBadge(mentor.status)}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center gap-2">
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-2">
                           {/* Display current reason/status */}
                           {mentorEngagement[mentor.id] && (
                             <span className="text-sm text-muted-foreground">
@@ -393,11 +472,29 @@ const Dashboard = () => {
                                 <ChevronDown className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                            <DropdownMenuContent align="center" side="bottom">
                               <DropdownMenuItem 
-                                onClick={() => {
-                                  handleEngagementUpdate(mentor.id, "Connection Accepted");
-                                  handleAwardPoints(mentor.id, "Connection Accepted", mentor);
+                                onClick={async () => {
+                                  // Fetch existing comments for this mentor
+                                  const { data: mentorData } = await supabase
+                                    .from('mentors')
+                                    .select('comments')
+                                    .eq('id', mentor.id)
+                                    .single();
+                                  
+                                  setEngagementComment(mentorData?.comments || '');
+                                  setExistingComments(prev => ({
+                                    ...prev,
+                                    [mentor.id]: mentorData?.comments || ''
+                                  }));
+                                  
+                                  setEngagementPopup({
+                                    isOpen: true,
+                                    mentorId: mentor.id,
+                                    status: "Connection Accepted",
+                                    mentor: mentor,
+                                    message: `Marking mentor as: Connection Accepted`
+                                  });
                                 }}
                               >
                                 Connection Accepted
@@ -406,9 +503,27 @@ const Dashboard = () => {
                                 )}
                               </DropdownMenuItem>
                               <DropdownMenuItem 
-                                onClick={() => {
-                                  handleEngagementUpdate(mentor.id, "Positive Engagement");
-                                  handleAwardPoints(mentor.id, "Positive Engagement", mentor);
+                                onClick={async () => {
+                                  // Fetch existing comments for this mentor
+                                  const { data: mentorData } = await supabase
+                                    .from('mentors')
+                                    .select('comments')
+                                    .eq('id', mentor.id)
+                                    .single();
+                                  
+                                  setEngagementComment(mentorData?.comments || '');
+                                  setExistingComments(prev => ({
+                                    ...prev,
+                                    [mentor.id]: mentorData?.comments || ''
+                                  }));
+                                  
+                                  setEngagementPopup({
+                                    isOpen: true,
+                                    mentorId: mentor.id,
+                                    status: "Positive Engagement",
+                                    mentor: mentor,
+                                    message: `Marking mentor as: Positive Engagement`
+                                  });
                                 }}
                               >
                                 Positive Engagement
@@ -421,7 +536,8 @@ const Dashboard = () => {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))
+                  ));
+                })()
               ) : (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center text-muted-foreground">
@@ -433,6 +549,146 @@ const Dashboard = () => {
           </Table>
         </CardContent>
       </Card>
+      
+      {/* Pagination Controls with Chevron Buttons */}
+      {mentors.length > recordsPerPage && (
+        (() => {
+          const filteredMentors = mentors.filter(mentor => 
+            mentor.mentor_name.toLowerCase().includes(searchTerm.toLowerCase())
+          );
+          const totalPages = Math.ceil(filteredMentors.length / recordsPerPage);
+          
+          return (
+            <div className="flex items-center justify-center gap-4 mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              
+              <div className="flex items-center gap-2">
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .slice(Math.max(0, currentPage - 3), Math.min(totalPages, currentPage + 2))
+                  .map(pageNumber => (
+                    <Button
+                      key={pageNumber}
+                      variant={currentPage === pageNumber ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(pageNumber)}
+                      className="w-8 h-8 p-0"
+                    >
+                      {pageNumber}
+                    </Button>
+                  ))}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          );
+        })()
+      )}
+
+      {/* Engagement Popup Dialog */}
+      {engagementPopup && engagementPopup.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-background border rounded-lg p-6 w-full max-w-md relative">
+            {/* Close button */}
+            <button
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                setEngagementPopup(null);
+                setEngagementComment('');
+              }}
+            >
+              <X className="h-5 w-5" />
+            </button>
+            
+            <h3 className="text-lg font-semibold mb-4">Update Engagement Status</h3>
+            <p className="mb-2 text-muted-foreground">{engagementPopup.message}</p>
+            <p className="mb-4 text-sm">
+              Adding {engagementPopup.status === "Connection Accepted" ? "10" : "15"} points for this engagement.
+            </p>
+            
+            <div className="flex justify-end gap-2 mb-4">
+              <Button 
+                onClick={async () => {
+                  // Handle the engagement update without comment
+                  await handleEngagementUpdate(engagementPopup.mentorId, engagementPopup.status, '');
+                  
+                  // Handle point awarding
+                  await handleAwardPoints(
+                    engagementPopup.mentorId, 
+                    engagementPopup.status, 
+                    engagementPopup.mentor
+                  );
+                }}
+              >
+                OK
+              </Button>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">Note</label>
+              <Textarea
+                placeholder="Add any additional notes here..."
+                value={engagementComment}
+                onChange={(e) => setEngagementComment(e.target.value)}
+                className="mb-4"
+                rows={4}
+              />
+              {existingComments[engagementPopup.mentorId] && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  <strong>Existing note:</strong> {existingComments[engagementPopup.mentorId]}
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setEngagementPopup(null);
+                  setEngagementComment('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={async () => {
+                  // Handle the engagement update with comment
+                  const success = await handleEngagementUpdate(engagementPopup.mentorId, engagementPopup.status, engagementComment);
+                  
+                  // Only proceed with point awarding if comment saving was successful
+                  if (success) {
+                    // Handle point awarding
+                    await handleAwardPoints(
+                      engagementPopup.mentorId, 
+                      engagementPopup.status, 
+                      engagementPopup.mentor
+                    );
+                  }
+                  
+                  // Close the popup and reset comment
+                  setEngagementPopup(null);
+                  setEngagementComment('');
+                }}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

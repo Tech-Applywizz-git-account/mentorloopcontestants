@@ -62,6 +62,7 @@ export type Database = {
           previous_domain: string | null
           status: Database["public"]["Enums"]["mentor_status"]
           updated_at: string
+          comments: string | null
         }
         Insert: {
           created_at?: string
@@ -77,6 +78,7 @@ export type Database = {
           previous_domain?: string | null
           status?: Database["public"]["Enums"]["mentor_status"]
           updated_at?: string
+          comments?: string | null
         }
         Update: {
           created_at?: string
@@ -92,6 +94,7 @@ export type Database = {
           previous_domain?: string | null
           status?: Database["public"]["Enums"]["mentor_status"]
           updated_at?: string
+          comments?: string | null
         }
         Relationships: [
           {
