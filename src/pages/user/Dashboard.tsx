@@ -45,7 +45,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 const CONTEST_START = new Date("2025-10-21T00:00:00+05:30");
-const CONTEST_END = new Date("2025-11-30T23:59:59+05:30");
+const CONTEST_END = new Date("2030-11-30T23:59:59+05:30");
 
 const Dashboard = () => {
   const { profile } = useAuth();
